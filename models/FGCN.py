@@ -1,6 +1,5 @@
-import torch.nn as nn
-import torch.nn.functional as F
 import torch
+import torch.nn as nn
 
 from modules.ResNet import resnet152
 from modules.VGG import VGGNet

@@ -15,8 +15,6 @@ from tools.datasets import ImageFolder
 from tools.misc import (
     AvgMeter, cal_fmeasure, cal_p_r_mae_fm, check_mkdir, crf_refine)
 
-# from models.FGCN import FCNs
-
 torch.manual_seed(2019)
 torch.cuda.set_device(0)
 
