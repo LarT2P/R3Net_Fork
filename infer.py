@@ -7,9 +7,10 @@ from PIL import Image
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torchviz import make_dot
 from tqdm import tqdm
 
-from models.FGCN import FCN8s
+from models.FGCN import FGCN8s
 from tools.config import (ecssd_path)
 from tools.datasets import ImageFolder
 from tools.misc import (
@@ -30,8 +31,8 @@ ckpt_path = ckpt_path_all[exp_name]
 
 # duts: 30000次迭带
 args = {
-    'snapshot': '8000',
-    'crf_refine': True,
+    'snapshot': '5',
+    'crf_refine': False,
 }
 data_path = ['ecssd', ecssd_path]
 
@@ -49,22 +50,12 @@ test_set = ImageFolder(root=data_path[1],
                        isTrain=False,
                        transform=img_transform)
 test_loader = DataLoader(test_set,
-                         batch_size=4,
-                         num_workers=12)
+                         batch_size=1,
+                         num_workers=4)
 
 
-# R2Net, after: 6000 msra10k
-# test results:{'fm_thresholds': 0.9144239202514287, 'fm': 0.8578482803577097, 'mae': 0.07251937238625916}
-# (resize 640, 640)
-# test results:{'fm_thresholds': 0.9045901551676869, 'fm': 0.8450927408381543, 'mae': 0.07926012772671576}
-# (resize 800, 800)
-# test results:{'fm_thresholds': 0.8666383530633786, 'fm': 0.8306131125151587, 'mae': 0.12597991255241972}
-# batch=1, noresize
-
-# ResNet+FCN, after: 8000 msra10k
-# test: ecssd: test results:{'fm_thresholds': 0.9175770664829266, 'fm': 0.8349719393636144, 'mae': 0.07209092804935234}
 def main():
-    net = FCN8s(pretrained=False).cuda()
+    net = FGCN8s(pretrained=False).cuda()
     
     # 使用保存好的已经训练好的模型来进行测试, 具体使用哪个, 由参数'sanpshot'确定
     print('load snapshot \'%s\' for testing' % args['snapshot'])
@@ -72,32 +63,35 @@ def main():
         ckpt_path, f"{exp_name}:{data_path[0]}_{args['snapshot']}"))
     
     net.load_state_dict(torch.load(
-        os.path.join(ckpt_path, exp_name, args['snapshot'] + '.pth')))
+        os.path.join(ckpt_path, exp_name, args['snapshot'] + '_gcn.pth')))
     net.eval()
+    add_graph(net)
     
     tqdm_loader = tqdm(test_loader)
-    
+
     with torch.no_grad():
         # 迭代数据
         for i, data in enumerate(tqdm_loader):
             # print(f"开始迭代batch{i}/{len(tqdm_loader)}")
             inputs, img_names, hs, ws = data
-        
+
             inputs = Variable(inputs).cuda()
             prediction = net(inputs)
             for i_item, img_name in enumerate(img_names):
                 pre = prediction[i_item]
                 pre = to_pil(pre.data.cpu())
-            
+
                 pre = pre.resize((hs[i_item], ws[i_item]), Image.ANTIALIAS)
                 pre = np.array(pre)
-            
+
                 img_path = os.path.join(
                     ckpt_path, f"{exp_name}:{data_path[0]}_"
                     f"{args['snapshot']}", img_name + '.png')
                 Image.fromarray(pre).save(img_path)
-    
-        print("测试集预测生成结束")
+
+        print("测试集预测生成结束, 准备绘制网络结构")
+        x = torch.rand(1, 3, 640, 640).cuda()
+        make_dot(net(x), params=dict(net.named_parameters()))
 
 
 def cal_criterion():
@@ -158,14 +152,20 @@ def cal_criterion():
     print(f'test results:{results}')
 
 
+def add_graph(net):
+    x = Variable(torch.rand(1, 3, 640, 640)).cuda()
+    dot = make_dot(net(x), params=dict(net.named_parameters()))
+    dot.format = 'svg'
+    dot.render('./imgs/gragh')
+
 if __name__ == '__main__':
     start = datetime.datetime.now()
     
     main()
     middle = datetime.datetime.now() - start
     print(f"生成预测所需时间为:{middle}")
-    
-    cal_criterion()
+
+    # cal_criterion()
     print(f"测量指标所需时间为:{datetime.datetime.now() - middle}")
     
     print(f"整体时间为:{datetime.datetime.now() - start}")

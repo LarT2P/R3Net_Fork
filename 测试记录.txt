@@ -1,0 +1,24 @@
+ResNet+FCN(8s), after: 8000 msra10k
+test dateset: ecssd
+CRF: False
+test results:{'fm_thresholds': 0.9175770664829266, 'fm': 0.8349719393636144, 'mae': 0.07209092804935234}
+CRF: True
+test results:{'fm_thresholds': 0.927310347981645, 'fm': 0.8894080232932324, 'mae': 0.04334419571085891}
+
+ResNet+FCN(8s, upsample+conv3x3), after: 5 epoch msra10k, batch_size=4
+test dataset: ecssd
+CRF: False
+test results:{'fm_thresholds': 0.932642051555939, 'fm': 0.8723999913934781, 'mae': 0.057150549770987887}
+相较于原始的转置卷积的FCN8s, 这里不光修改了上采样结构, 也更改了训练计数规则, 以周期为基准. 这里实际上训练迭代次数更长了.
+
+ResNet+FCN(8s, upsample+conv3x3)+skip_conv1x1+gcnlayers, after: 5 epoch msra10k, batch_size=1(GCN的实现受限, 只能使用batch_size=1)
+test dataset: ecssd
+CRF: False
+test results:{'fm_thresholds': 0.8726992686885744, 'fm': 0.7928775626608315, 'mae': 0.0959867546773832}
+这里效果变差, 但是原因可能有很多, 因为这里修改了skip连接的结构, 为了使得后期通道数减小, 这里使用了1x1卷积降低通道数. 这个可能也在一定程度上造成了问题
+
+ResNet+FCN(8s, upsample+conv3x3)+skip_conv1x1, after: 5 epoch msra10k, batch_size=1(GCN的实现受限, 只能使用batch_size=1) 这里测试去掉gcnlayers的性能
+test dataset: ecssd
+CRF: False
+test results:{'fm_thresholds': 0.8710852962506658, 'fm': 0.7686559940897713, 'mae': 0.1117923793235568}
+这里效果变差了, 对比发现, 只是相比上一次少了 gcnlayers , 在自适应fm上下降了0.024, mae增长了0.02.
